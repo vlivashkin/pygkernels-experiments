@@ -1,3 +1,4 @@
 [submodule "pygkernels"]
 	path = pygkernels
 	url = https://github.com/vlivashkin/pygkernels
+	branch = master
