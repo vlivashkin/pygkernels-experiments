@@ -7,7 +7,6 @@ import numpy as np
 from joblib import Parallel, delayed
 from sklearn.metrics import adjusted_rand_score, normalized_mutual_info_score
 from tqdm import tqdm
-import Orange
 
 sys.path.append('../../pygkernels')
 from pygkernels.cluster import KKMeans
@@ -25,18 +24,27 @@ CACHE_ROOT = '../../cache/kkmeans_init_sbm'
 # CACHE_ROOT = 'cache/kkmeans_init_sbm'
 columns = [
     (100, 2, 0.2, 0.05),
+    (100, 2, 0.2, 0.1),
+    (100, 2, 0.2, 0.15),
     (100, 2, 0.3, 0.05),
     (100, 2, 0.3, 0.1),
     (100, 2, 0.3, 0.15),
+    (102, 3, 0.3, 0.05),
     (102, 3, 0.3, 0.1),
+    (102, 3, 0.3, 0.15),
     (100, 4, 0.3, 0.1),
     (100, 4, 0.3, 0.15),
     (200, 2, 0.3, 0.05),
     (200, 2, 0.3, 0.1),
     (200, 2, 0.3, 0.15),
+    (201, 3, 0.3, 0.05),
     (201, 3, 0.3, 0.1),
+    (201, 3, 0.3, 0.15),
     (200, 4, 0.3, 0.1),
-    (200, 4, 0.3, 0.15)
+    (200, 4, 0.3, 0.15),
+    (400, 2, 0.2, 0.05),
+    (400, 2, 0.2, 0.1),
+    (400, 2, 0.2, 0.15)
 ]
 
 
@@ -53,7 +61,11 @@ def generate_graphs(column, n_graphs, root=f'{CACHE_ROOT}/graphs'):
 
 
 def perform_graph(graph, kernel_class: Type[Kernel], estimator: KKMeans, n_params, graph_idx):
-    (A, y_true), G = graph
+    try:
+        (A, y_true), G = graph
+    except:
+        A, y_true = graph
+
     kernel: Kernel = kernel_class(A)
 
     results = {}
