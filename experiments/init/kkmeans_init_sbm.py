@@ -23,6 +23,16 @@ For every column and measure, we calculate [ ] in parallel for every graph.
 CACHE_ROOT = '../../cache/kkmeans_init_sbm'
 # CACHE_ROOT = 'cache/kkmeans_init_sbm'
 columns = [
+    (100, 2, 0.05, 0.01),
+    (100, 2, 0.05, 0.02),
+    (100, 2, 0.05, 0.03),
+    (100, 2, 0.1, 0.03),
+    (100, 2, 0.1, 0.05),
+    (100, 2, 0.1, 0.07),
+    (100, 2, 0.15, 0.03),
+    (100, 2, 0.15, 0.05),
+    (100, 2, 0.15, 0.07),
+    (100, 2, 0.15, 0.1),
     (100, 2, 0.2, 0.05),
     (100, 2, 0.2, 0.1),
     (100, 2, 0.2, 0.15),
