@@ -1,5 +1,5 @@
-import os
 import argparse
+import os
 import sys
 from functools import partial
 from typing import Type
@@ -24,40 +24,17 @@ For every column and measure, we calculate [ ] in parallel for every graph.
 CACHE_ROOT = '../../cache/kkmeans_init_sbm'
 # CACHE_ROOT = 'cache/kkmeans_init_sbm'
 columns = [
-    (100, 2, 0.1, 0.001),
-    (100, 2, 0.1, 0.005),
-    (100, 2, 0.1, 0.01),
-    (100, 2, 0.1, 0.02),
-    (100, 2, 0.1, 0.05),
-    (100, 2, 0.1, 0.1),
-    
-    (102, 3, 0.1, 0.001),
-    (102, 3, 0.1, 0.005),
-    (102, 3, 0.1, 0.01),
-    (102, 3, 0.1, 0.02),
-    (102, 3, 0.1, 0.05),
-    (102, 3, 0.1, 0.1),
-    
-    (150, 3, 0.1, 0.001),
-    (150, 3, 0.1, 0.005),
-    (150, 3, 0.1, 0.01),
-    (150, 3, 0.1, 0.02),
-    (150, 3, 0.1, 0.05),
-    (150, 3, 0.1, 0.1),
+    (200, 4, 0.1, 0.001), (200, 4, 0.1, 0.005), (200, 4, 0.1, 0.01), (200, 4, 0.1, 0.02),
+    (200, 4, 0.1, 0.05), (200, 4, 0.1, 0.1),
 
-    (100, 4, 0.1, 0.001),
-    (100, 4, 0.1, 0.005),
-    (100, 4, 0.1, 0.01),
-    (100, 4, 0.1, 0.02),
-    (100, 4, 0.1, 0.05),
-    (100, 4, 0.1, 0.1),
-    
-    (200, 4, 0.1, 0.001),
-    (200, 4, 0.1, 0.005),
-    (200, 4, 0.1, 0.01),
-    (200, 4, 0.1, 0.02),
-    (200, 4, 0.1, 0.05),
-    (200, 4, 0.1, 0.1),
+    (150, 2, 0.1, 0.001), (150, 2, 0.1, 0.005), (150, 2, 0.1, 0.01), (150, 2, 0.1, 0.02),
+    (150, 2, 0.1, 0.05), (150, 2, 0.1, 0.1),
+
+    (200, 2, 0.1, 0.001), (200, 2, 0.1, 0.005), (200, 2, 0.1, 0.01), (200, 2, 0.1, 0.02),
+    (200, 2, 0.1, 0.05), (200, 2, 0.1, 0.1),
+
+    (500, 2, 0.1, 0.001), (500, 2, 0.1, 0.005), (500, 2, 0.1, 0.01), (500, 2, 0.1, 0.02),
+    (500, 2, 0.1, 0.05), (500, 2, 0.1, 0.1),
 ]
 
 
@@ -122,7 +99,7 @@ def perform_kernel(column, graphs, kernel_class, n_params, n_jobs, n_gpu, root=f
         os.mkdir(f'{root}/{column_str}')
     except:
         pass
-        
+
     @load_or_calc_and_save(f'{root}/{column_str}/{column_str}_{kernel_class.name}_results.pkl', ignore_if_exist=True)
     def _calc(n_graphs=None, n_params=n_params, n_jobs=n_jobs):
         kmeans = partial(KKMeans, n_clusters=k, init='any', n_init=N_INITS, init_measure='modularity')
@@ -157,7 +134,7 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
     print(args)
-    
+
     print('Checking CACHE_ROOT to be available...')
     with open(f'{CACHE_ROOT}/check', 'w') as f:
         f.write('ok\n')
