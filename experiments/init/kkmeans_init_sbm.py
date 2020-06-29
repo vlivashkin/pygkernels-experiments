@@ -24,27 +24,28 @@ For every column and measure, we calculate [ ] in parallel for every graph.
 CACHE_ROOT = '../../cache/kkmeans_init_sbm'
 # CACHE_ROOT = 'cache/kkmeans_init_sbm'
 columns = [
-    (200, 4, 0.1, 0.001), (200, 4, 0.1, 0.005), (200, 4, 0.1, 0.01), (200, 4, 0.1, 0.02),
-    (200, 4, 0.1, 0.05), (200, 4, 0.1, 0.1),
+    (100, 2, 0.1, 0.001, 1.0), (100, 2, 0.1, 0.005, 1.0), (100, 2, 0.1, 0.01, 1.0), (100, 2, 0.1, 0.02, 1.0),
+    (100, 2, 0.1, 0.05, 1.0), (100, 2, 0.1, 0.1, 1.0),
 
-    (150, 2, 0.1, 0.001), (150, 2, 0.1, 0.005), (150, 2, 0.1, 0.01), (150, 2, 0.1, 0.02),
-    (150, 2, 0.1, 0.05), (150, 2, 0.1, 0.1),
+    (150, 2, 0.1, 0.001, None), (150, 2, 0.1, 0.005, None), (150, 2, 0.1, 0.01, None), (150, 2, 0.1, 0.02, None),
+    (150, 2, 0.1, 0.05, None), (150, 2, 0.1, 0.1, None),
 
-    (200, 2, 0.1, 0.001), (200, 2, 0.1, 0.005), (200, 2, 0.1, 0.01), (200, 2, 0.1, 0.02),
+    (200, 2, 0.1, 0.001), (200, 2, 0.1, 0.005), (200, 2, 0.1, 0.01), (200, 2, 0.1, 0.02, None),
     (200, 2, 0.1, 0.05), (200, 2, 0.1, 0.1),
 
-    (500, 2, 0.1, 0.001), (500, 2, 0.1, 0.005), (500, 2, 0.1, 0.01), (500, 2, 0.1, 0.02),
-    (500, 2, 0.1, 0.05), (500, 2, 0.1, 0.1),
+    (500, 2, 0.1, 0.001, None), (500, 2, 0.1, 0.005, None), (500, 2, 0.1, 0.01, None), (500, 2, 0.1, 0.02, None),
+    (500, 2, 0.1, 0.05, None), (500, 2, 0.1, 0.1, None),
 ]
 
 
 def generate_graphs(column, n_graphs, root=f'{CACHE_ROOT}/graphs'):
-    n, k, p_in, p_out = column
-    column_str = f'{n}_{k}_{p_in:.2f}_{p_out:.3f}'
+    n, k, p_in, p_out, balance = column
+    column_str = f'{n}_{k}_{p_in:.2f}_{p_out:.3f}' + (f'_{balance:.2f}' if balance is not None else '')
 
     @load_or_calc_and_save(f'{root}/{column_str}_{n_graphs}_graphs.pkl')
     def _calc(n_graphs=n_graphs, n_params=None, n_jobs=None):
-        graphs, _ = StochasticBlockModel(n, k, p_in=p_in, p_out=p_out).generate_graphs(n_graphs, verbose=True)
+        graphs, _ = StochasticBlockModel(n, k, p_in=p_in, p_out=p_out, balance=balance)\
+            .generate_graphs(n_graphs, verbose=True)
         return graphs
 
     return _calc(n_graphs=n_graphs, n_params=None, n_jobs=None)
@@ -92,8 +93,8 @@ def perform_graph(graph, kernel_class: Type[Kernel], estimator: KKMeans, n_param
 
 
 def perform_kernel(column, graphs, kernel_class, n_params, n_jobs, n_gpu, root=f'{CACHE_ROOT}/by_column'):
-    n, k, p_in, p_out = column
-    column_str = f'{n}_{k}_{p_in:.2f}_{p_out:.3f}'
+    n, k, p_in, p_out, balance = column
+    column_str = f'{n}_{k}_{p_in:.2f}_{p_out:.3f}' + (f'_{balance:.2f}' if balance is not None else '')
 
     try:
         os.mkdir(f'{root}/{column_str}')
@@ -112,8 +113,8 @@ def perform_kernel(column, graphs, kernel_class, n_params, n_jobs, n_gpu, root=f
 
 
 def perform_column(column, graphs):
-    n, k, p_in, p_out = column
-    column_str = f'{n}_{k}_{p_in:.2f}_{p_out:.3f}'
+    n, k, p_in, p_out, balance = column
+    column_str = f'{n}_{k}_{p_in:.2f}_{p_out:.3f}' + (f'_{balance:.2f}' if balance is not None else '')
     for kernel_class in tqdm(kernels, desc=column_str):
         perform_kernel(column, graphs, kernel_class, n_params=N_PARAMS, n_jobs=N_JOBS, n_gpu=N_GPU)
 

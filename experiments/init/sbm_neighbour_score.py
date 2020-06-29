@@ -24,16 +24,37 @@ def p_interval(l, h, size, p):
     return np.sum([pe(e, size, p) for e in range(l, h + 1)])
 
 
-def sbm_neighbour_score(n, k, p_in, p_out):
-    size = n // k
-    sum_ = 0
-    for e in range(size):
-        sum_ += pe(e, size - 1, p_in) * (p_interval(0, e - 1, size, p_out) ** (k - 1))
-    return sum_
+def sbm_neighbour_score(n, k, p_in, p_out, balance=None, weighting='proportional'):
+    if balance is not None:
+        softmax = lambda x, beta: np.exp(beta * x) / np.sum(np.exp(beta * x), axis=0)
+        cluster_sizes = ([1] * k + (n - k) * softmax(np.arange(k)[::-1], beta=balance)).astype(np.int)
+        cluster_sizes[0] += n - np.sum(cluster_sizes)
+        
+        score = np.zeros((k,))
+        for ki in range(k):
+            for e in range(cluster_sizes[ki]):
+                class_score_e = pe(e, cluster_sizes[ki] - 1, p_in)
+                for kj in range(k):
+                    if ki != kj:
+                        class_score_e *= p_interval(0, min(e - 1, cluster_sizes[kj]), cluster_sizes[kj], p_out)
+                score[ki] += class_score_e
+        
+        if weighting == 'proportional':
+            overall = np.sum([sc * size for sc, size in zip(score, cluster_sizes)]) / n
+        else:
+            overall = np.mean(score)
+        return overall
+    else:
+        size = n // k
+        sum_ = 0
+        for e in range(size):
+            sum_ += pe(e, size - 1, p_in) * (p_interval(0, e - 1, size, p_out) ** (k - 1))
+        return sum_
 
 
 def graph_neighbour_score(A, partition, weighting='proportional'):
     # calculate cluster_sizes and all p
+    n_nodes = A.shape[0]
     n_clusters = len(set(partition))
     cluster_sizes = dict(Counter(partition))
     class_mapping = {v: k for k, v in enumerate(cluster_sizes.keys())}
@@ -76,7 +97,7 @@ def graph_neighbour_score(A, partition, weighting='proportional'):
             score[ki] += class_score_e
 
     if weighting == 'proportional':
-        overall = np.sum([sc * size for sc, size in zip(score, cluster_sizes)]) / len(partition)
+        overall = np.sum([sc * size for sc, size in zip(score, cluster_sizes)]) / n_nodes
     else:
         overall = np.mean(score)
     return overall
