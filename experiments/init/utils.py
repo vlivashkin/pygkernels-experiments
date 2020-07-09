@@ -12,6 +12,7 @@ from joblib import delayed, Parallel
 from networkx.algorithms.approximation import clique
 from scipy.stats import rankdata
 from sklearn.metrics import accuracy_score, f1_score
+from sklearn.svm import SVC, SVR
 from tqdm import tqdm
 
 from sbm_neighbour_score import sbm_neighbour_score, graph_neighbour_score
@@ -37,7 +38,7 @@ from pygkernels.data.dataset import Datasets
 class Data:
     CACHE_ROOT = '../../cache/cache'
 
-    kernels_names = [
+    kernel_names = [
         'Katz', 'logKatz',
         'For', 'logFor',
         'Comm', 'logComm',
@@ -71,8 +72,8 @@ class Data:
         'n/k': True,
         'p_in/p_out': True,
         'log(n)/k * p_in/p_out': True,
-        'n/k * p_in/p_out': True,
-        'log(n/k) * p_in/p_out': True,
+        'n/k * p_in/p_out': False,
+        'log(n/k) * p_in/p_out': False,
         'log(n/k * p_in/p_out)': False,
         'sbm_neighbour_score': True,
         'modularity': True,
@@ -87,16 +88,16 @@ class Data:
         'std_sp': True,
         'median_sp': True,
         'max_sp': False,
-        'max_clique': True,
+        'max_clique': False,
         'max_clique/(n/k)': True
     }
-    allowed_features = list(allowed_features.values())
+    allowed_features_list = [k for k, v in allowed_features.items() if v]
 
     features_to_log = {
         'n': False,
         'k': False,
-        'p_in': False,
-        'p_out': False,
+        'p_in': True,
+        'p_out': True,
         'n/k': False,
         'p_in/p_out': True,
         'log(n)/k * p_in/p_out': True,
@@ -119,7 +120,10 @@ class Data:
         'max_clique': True,
         'max_clique/(n/k)': True
     }
-    features_to_log = list(features_to_log.values())
+    features_to_log_list = [k for k, v in features_to_log.items() if v]
+
+    def __init__(self):
+        self.datasets_partition = None
 
     def load_precalculated(self):
         pass
@@ -127,8 +131,31 @@ class Data:
     def extract_feature(self, dataset_info, feature, G=None, partition=None, sp=None, max_clique=None):
         pass
 
-    def make_dataset(self, results_modularity_any3):
-        pass
+    def make_dataset(self, return_clf=True):
+        _, results_modularity_any3, _ = self.load_precalculated()
+        Xy_list = Parallel(n_jobs=1)(delayed(self.prepare_column)(results_modularity_any3, column)
+                                     for column in tqdm(results_modularity_any3.keys(), desc='prepare columns'))
+
+        X, y, X_train, y_train, X_val, y_val = [], [], [], [], [], []
+        for Xi, yi in Xy_list:
+            Xi = np.array([[np.log(Xii[fname]) if fname in self.features_to_log_list else Xii[fname]
+                            for fname in self.allowed_features_list] for Xii in Xi])
+            yi = np.array([[yii[kname] for kname in self.kernel_names] for yii in yi])
+            if return_clf:
+                yi = yi > (np.max(yi, axis=1, keepdims=True) - 0.0001)
+
+            X.append(Xi)
+            y.append(yi)
+
+        X, y = np.array(X), np.array(y)  # X: [n_columns, 100, n_allowed_features], y: [n_columns, 100, n_kernels]
+
+        for i, name in enumerate(self.allowed_features_list):
+            was_logged = name in self.features_to_log_list 
+            X[:, :, i] = ((X[:, :, i] - np.mean(X[:, :, i])) if was_logged else X[:, :, i]) / np.std(X[:, :, i])
+
+        assert X.shape[2] == len(self.allowed_features_list)
+
+        return X, y
 
 
 class SBM_Data(Data):
@@ -142,7 +169,8 @@ class SBM_Data(Data):
         (100, 2, 0.1, 0.02), (100, 2, 0.1, 0.03), (100, 2, 0.1, 0.05), (100, 2, 0.1, 0.07),
         (100, 2, 0.1, 0.1),
 
-        (100, 2, 0.1, 0.001, 1.0), (100, 2, 0.1, 0.005, 1.0), (100, 2, 0.1, 0.01, 1.0),
+        (100, 2, 0.1, 0.001, 1.0), (100, 2, 0.1, 0.005, 1.0), (100, 2, 0.1, 0.01, 1.0), (100, 2, 0.1, 0.02, 1.0),
+        (100, 2, 0.1, 0.05, 1.0), (100, 2, 0.1, 0.1, 1.0),
 
         (100, 2, 0.15, 0.01), (100, 2, 0.15, 0.03), (100, 2, 0.15, 0.05), (100, 2, 0.15, 0.07),
         (100, 2, 0.15, 0.1), (100, 2, 0.15, 0.15),
@@ -151,8 +179,8 @@ class SBM_Data(Data):
 
         (100, 2, 0.3, 0.05), (100, 2, 0.3, 0.1), (100, 2, 0.3, 0.15),
 
-        (102, 3, 0.1, 0.001), (102, 3, 0.1, 0.005), (102, 3, 0.1, 0.01), (102, 3, 0.1, 0.02),
-        (102, 3, 0.1, 0.05), (102, 3, 0.1, 0.1),
+        (102, 3, 0.1, 0.001), (102, 3, 0.1, 0.005), (102, 3, 0.1, 0.01), (102, 3, 0.1, 0.02), 
+        (102, 3, 0.1, 0.03), (102, 3, 0.1, 0.05), (102, 3, 0.1, 0.1),
 
         (102, 3, 0.3, 0.05), (102, 3, 0.3, 0.1), (102, 3, 0.3, 0.15),
 
@@ -161,10 +189,13 @@ class SBM_Data(Data):
 
         (100, 4, 0.3, 0.1), (100, 4, 0.3, 0.15),
 
-        (150, 2, 0.1, 0.001), (150, 2, 0.1, 0.005),
+        (150, 2, 0.1, 0.001), (150, 2, 0.1, 0.005), (150, 2, 0.1, 0.01), (150, 2, 0.1, 0.02),
+        (150, 2, 0.1, 0.03), (150, 2, 0.1, 0.05), (150, 2, 0.1, 0.1),
 
         (150, 3, 0.1, 0.001), (150, 3, 0.1, 0.005), (150, 3, 0.1, 0.01), (150, 3, 0.1, 0.02),
         (150, 3, 0.1, 0.05), (150, 3, 0.1, 0.1),
+
+        (200, 2, 0.1, 0.001), (200, 2, 0.1, 0.005), (200, 2, 0.1, 0.01),
 
         (200, 2, 0.3, 0.05), (200, 2, 0.3, 0.1), (200, 2, 0.3, 0.15),
 
@@ -173,10 +204,14 @@ class SBM_Data(Data):
         (200, 4, 0.1, 0.001), (200, 4, 0.1, 0.005), (200, 4, 0.1, 0.01), (200, 4, 0.1, 0.02),
         (200, 4, 0.1, 0.05), (200, 4, 0.1, 0.1),
 
-        (200, 4, 0.3, 0.1), (200, 4, 0.3, 0.15)
+        (200, 4, 0.3, 0.1), (200, 4, 0.3, 0.15),
+        
+        (500, 2, 0.1, 0.001), (500, 2, 0.1, 0.005), (500, 2, 0.1, 0.01), (500, 2, 0.1, 0.02),
+        (500, 2, 0.1, 0.05)
     ]
 
     def __init__(self):
+        super().__init__()
         self.datasets = [self.column2str(x) for x in self.sbm_columns]
 
     @staticmethod
@@ -289,77 +324,36 @@ class SBM_Data(Data):
             return max_clique
         elif feature == 'max_clique/(n/k)':
             return max_clique / (n / k)
+        elif feature == 'class_idx':
+            for class_idx, datasetss in enumerate(self.datasets_partition):
+                if column_str in datasetss:
+                    return class_idx
         else:
             raise Exception()
 
-    def make_dataset(self, results_modularity_any3):
-        def prepare_column(column):
-            @load_or_calc_and_save(f'{self.CACHE_ROOT}/feature_importance/{column}.pkl')
-            def wrapper():
-                X, ya, yr = [], [], []
-                filename = f'{column}_100_graphs.pkl'
-                with open(f'{self.SBM_RESULTS_ROOT}/graphs/{filename}', 'rb') as f:
-                    data = pickle.load(f)
-                for graph_idx in range(100):
-                    try:
-                        (A, y_true), _ = data[graph_idx]
-                    except:
-                        (A, y_true) = data[graph_idx]
-                    G = nx.from_numpy_matrix(A)
-                    partition = ytrue_to_partition(y_true)
-                    sp = [l for u in G for v, l in nx.single_source_shortest_path_length(G, u).items()]
-                    max_clique = len(clique.max_clique(G))
-                    features = [self.extract_feature(column, feature_name, G, partition, sp, max_clique) for
-                                feature_name in self.feature_names]
-                    graph_ari = [v for k, v in
-                                 sorted(list(results_modularity_any3[column][graph_idx].items()), key=lambda x: x[0])]
-                    graph_ranks = calc_avranks({0: results_modularity_any3[column][graph_idx]})[0]
+    def prepare_column(self, results_modularity_any3, column):
+        @load_or_calc_and_save(f'{self.CACHE_ROOT}/feature_importance/{column}.pkl')
+        def wrapper():
+            X, ya = [], []
+            filename = f'{column}_100_graphs.pkl'
+            with open(f'{self.SBM_RESULTS_ROOT}/graphs/{filename}', 'rb') as f:
+                data = pickle.load(f)
+            for graph_idx in range(100):
+                try:
+                    (A, y_true), _ = data[graph_idx]
+                except:
+                    (A, y_true) = data[graph_idx]
+                G = nx.from_numpy_matrix(A)
+                partition = ytrue_to_partition(y_true)
+                sp = [l for u in G for v, l in nx.single_source_shortest_path_length(G, u).items()]
+                max_clique = len(clique.max_clique(G))
 
-                    X.append(features)
-                    ya.append(graph_ari)
-                    yr.append(graph_ranks)
-                return X, ya, yr
+                X.append({feature_name: self.extract_feature(column, feature_name, G, partition, sp, max_clique)
+                          for feature_name in self.feature_names})
+                ya.append(results_modularity_any3[column][graph_idx])
+            return X, ya
 
-            return wrapper()
-
-        Xy_list = Parallel(n_jobs=1)(delayed(prepare_column)(column) for column in tqdm(results_modularity_any3.keys()))
-
-        X, y, X_train, y_train, X_val, y_val = [], [], [], [], [], []
-        for Xi, _, yi in Xy_list:
-            Xi = np.array(Xi)
-            for i in range(25):
-                Xi[:, i] = np.log(Xi[:, i]) if self.features_to_log[i] else Xi[:, i]
-            Xi = Xi[:, self.allowed_features]
-            yi = yi > (np.max(yi, axis=1, keepdims=True) - 0.0001)
-
-            # add one-hot encoding of features
-            for i in range(25):
-                feature_onehot = np.zeros((100, 25))
-                feature_onehot[:, i] = 1
-                Xif = np.concatenate([Xi, feature_onehot], axis=1)
-                X.extend(Xif)
-                y.extend(yi[:, i])
-                X_train.extend(Xif[:70])
-                y_train.extend(yi[:70, i])
-                X_val.extend(Xif[70:])
-                y_val.extend(yi[70:, i])
-        X, y = np.array(X), np.array(y)
-        X_train, y_train, X_val, y_val = np.array(X_train), np.array(y_train), np.array(X_val), np.array(y_val)
-
-        feature_names = list(np.array(self.feature_names)[self.allowed_features])
-
-        for i, name in enumerate(feature_names):
-            was_logged = np.array(self.features_to_log)[self.allowed_features][i]
-            X[:, i] = ((X[:, i] - np.mean(X[:, i])) if was_logged else X[:, i]) / np.std(X[:, i])
-            X_train[:, i] = ((X_train[:, i] - np.mean(X_train[:, i]))
-                             if was_logged else X_train[:, i]) / np.std(X_train[:, i])
-            X_val[:, i] = ((X_val[:, i] - np.mean(X_val[:, i])) if was_logged else X_val[:, i]) / np.std(X_val[:, i])
-
-        feature_names += [f'kernel_{name}' for name in self.kernels_names]
-
-        assert X.shape[1] == len(feature_names)
-
-        return X, y, X_train, y_train, X_val, y_val, feature_names
+        return wrapper()
 
 
 class Datasets_Data(Data):
@@ -481,102 +475,92 @@ class Datasets_Data(Data):
             return max_clique
         elif feature == 'max_clique/(n/k)':
             return max_clique / (n / k)
+        elif feature == 'class_idx':
+            for class_idx, datasetss in enumerate(self.datasets_partition):
+                if dataset_name in datasetss:
+                    return class_idx
         else:
             raise Exception()
 
-    def make_dataset(self, results_modularity_any3):
-        def prepare_column(column):
-            @load_or_calc_and_save(f'{self.CACHE_ROOT}/feature_importance/{column}.pkl')
-            def wrapper():
-                X, ya, yr = [], [], []
-                (A, partition), info = self.actual_graphs[column]
-                n, k, p_in, p_out = info['n'], info['k'], info['p_in'], info['p_out']
-                G = nx.from_numpy_matrix(A)
-                partition = ytrue_to_partition(partition)
-                sp = [l for u in G for v, l in nx.single_source_shortest_path_length(G, u).items()]
-                max_clique = len(clique.max_clique(G))
-                features = [self.extract_feature((n, k, p_in, p_out), feature_name, G, partition, sp, max_clique)
-                            for feature_name in feature_names]
-                for graph_idx in range(7):
-                    graph_ari = [v for k, v in
-                                 sorted(list(results_modularity_any3[column][graph_idx].items()), key=lambda x: x[0])]
-                    graph_ranks = calc_avranks({0: results_modularity_any3[column][graph_idx]})[0]
+    def prepare_column(self, results_modularity_any3, column):
+        @load_or_calc_and_save(f'{self.CACHE_ROOT}/feature_importance/{column}.pkl')
+        def wrapper():
+            X, ya = [], []
+            (A, partition), info = self.actual_graphs[column]
+            n, k, p_in, p_out = info['n'], info['k'], info['p_in'], info['p_out']
+            G = nx.from_numpy_matrix(A)
+            partition = ytrue_to_partition(partition)
+            sp = [l for u in G for v, l in nx.single_source_shortest_path_length(G, u).items()]
+            max_clique = len(clique.max_clique(G))
+            features = {
+                feature_name: self.extract_feature((n, k, p_in, p_out), feature_name, G, partition, sp, max_clique)
+                for feature_name in self.feature_names}
+            for graph_idx in range(7):
+                graph_ari = results_modularity_any3[column][graph_idx]
+                X.append(features)
+                ya.append(graph_ari)
+            return X, ya
 
-                    X.append(features)
-                    ya.append(graph_ari)
-                    yr.append(graph_ranks)
-                return X, ya, yr
+        return wrapper()
 
-            return wrapper()
-
-        Xy_list = Parallel(n_jobs=1)(delayed(prepare_column)(column) for column in tqdm(results_modularity_any3.keys()))
-
-        X, y, X_train, y_train, X_val, y_val = [], [], [], [], [], []
-        for Xi, _, yi in Xy_list:
-            Xi = np.array(Xi)
-            for i in range(25):
-                Xi[:, i] = np.log(Xi[:, i]) if self.features_to_log[i] else Xi[:, i]
-            Xi = Xi[:, self.allowed_features]
-            yi = yi > (np.max(yi, axis=1, keepdims=True) - 0.0001)
-
-            # add one-hot encoding of features
-            for i in range(25):
-                feature_onehot = np.zeros((7, 25))
-                feature_onehot[:, i] = 1
-                Xif = np.concatenate([Xi, feature_onehot], axis=1)
-                X.extend(Xif)
-                y.extend(yi[:, i])
-                X_train.extend(Xif[:5])
-                y_train.extend(yi[:5, i])
-                X_val.extend(Xif[5:])
-                y_val.extend(yi[5:, i])
-        X, y = np.array(X), np.array(y)
-        X_train, y_train, X_val, y_val = np.array(X_train), np.array(y_train), np.array(X_val), np.array(y_val)
-
-        feature_names = list(np.array(self.feature_names)[self.allowed_features])
-
-        for i, name in enumerate(feature_names):
-            was_logged = np.array(self.features_to_log)[self.allowed_features][i]
-            X[:, i] = ((X[:, i] - np.mean(X[:, i])) if was_logged else X[:, i]) / np.std(X[:, i])
-            X_train[:, i] = ((X_train[:, i] - np.mean(X_train[:, i])) if was_logged else X_train[:, i]) / np.std(
-                X_train[:, i])
-            X_val[:, i] = ((X_val[:, i] - np.mean(X_val[:, i])) if was_logged else X_val[:, i]) / np.std(X_val[:, i])
-
-        feature_names += [f'kernel_{name}' for name in self.kernels_names]
-
-        assert X.shape[1] == len(feature_names)
-
-        return X, y, X_train, y_train, X_val, y_val, feature_names
-
-
-class RFE_custom:
-    def __init__(self, estimator, max_features=5):
+class RFE:
+    def __init__(self, estimator, names, max_features=5, n_jobs=None):
         self.estimator = estimator
+        self.names = names
         self.max_features = max_features
+        self.n_jobs = n_jobs
 
-    def fit(self, X_train, y_train, X_val, y_val, names):
-        # for all features first:
+    def score_one(self, X_train, y_train, X_val, y_val, set_feat_names):
+        support = np.array([x in set_feat_names for x in self.names], dtype=np.bool)
+
         estimator = deepcopy(self.estimator)
-        estimator.fit(X_train, y_train)
-        y_pred = estimator.predict(X_val)
-        acc_all = accuracy_score(y_val.ravel(), y_pred.ravel())
-        f1_all = f1_score(y_val.ravel(), y_pred.ravel())
+        estimator.fit(X_train[:, support], y_train)
+        y_pred = estimator.predict(X_val[:, support])
+
+        acc = accuracy_score(y_val.ravel(), y_pred.ravel())
+        f1 = f1_score(y_val.ravel(), y_pred.ravel())
+        
+        return set_feat_names, acc, f1, estimator
+
+    def fit(self, X_train, y_train, X_val=None, y_val=None):
+        # for all features first:
+        _, acc_all, f1_all, estimator_all = self.score_one(X_train, y_train, X_val, y_val, self.names)
         print(f'all features, acc={acc_all:.3f}, f1={f1_all:.3f}')
 
-        for n_features in range(1, self.max_features):
-            best_n_feat, best_acc, best_f1 = None, 0, 0
-            for set_feat_names in tqdm(list(combinations(names[:-25], n_features))):
-                support = np.array([x in set_feat_names for x in names[:-25]] + [1] * 25, dtype=np.bool)
-                estimator = deepcopy(self.estimator)
-                estimator.fit(X_train[:, support], y_train)
-                y_pred = estimator.predict(X_val[:, support])
-                acc = accuracy_score(y_val.ravel(), y_pred.ravel())
-                f1 = f1_score(y_val.ravel(), y_pred.ravel())
+        for n_features in range(1, self.max_features + 1):
+            results = Parallel(n_jobs=self.n_jobs)(
+                delayed(self.score_one)(X_train, y_train, X_val, y_val, set_feat_names)
+                for set_feat_names in tqdm(list(combinations(self.names, n_features))))
+            best_n_feat, best_acc, best_f1, best_estimator = None, 0, 0, None
+            for set_feat_names, acc, f1, estimator in results:
                 if f1 > best_f1:
-                    best_n_feat, best_acc, best_f1 = set_feat_names, acc, f1
-            print(f'{n_features} features, set={best_n_feat} acc={best_acc:.3f}, f1={best_f1:.3f}')
+                    best_n_feat, best_acc, best_f1, best_estimator = set_feat_names, acc, f1, estimator
+            print(f'{n_features} features, acc={best_acc:.3f}, f1={best_f1:.3f}, set={best_n_feat}')
 
         return self
+
+
+class RFE_LOO(RFE):
+    def loo(self, shape, block_size=25 * 7):
+        assert shape % block_size == 0
+        n_blocks = shape // block_size
+        for i in range(n_blocks):
+            val_mask = [block_size * i + j for j in range(block_size)]
+            train_index = np.ones((shape,), dtype=np.bool)
+            train_index[val_mask] = False
+            val_index = ~train_index
+            yield train_index, val_index
+
+    def score_one(self, X, y, X_val=None, y_val=None, support=None):
+        acc, f1 = [], []
+        for train_index, val_index in self.loo(X.shape[0]):
+            X_train, y_train, X_val, y_val = X[train_index], y[train_index], X[val_index], y[val_index]
+            estimator = deepcopy(self.estimator)
+            estimator.fit(X_train[:, support], y_train)
+            y_pred = estimator.predict(X_val[:, support])
+            acc.append(accuracy_score(y_val.ravel(), y_pred.ravel()))
+            f1.append(f1_score(y_val.ravel(), y_pred.ravel()))
+        return np.mean(acc), np.mean(f1)
 
 
 shuffle = lambda x: sorted(x, key=lambda k: random.random())
@@ -586,7 +570,7 @@ def load_or_calc_and_save(filename, force_calc=False, ignore_if_exist=False):
     def decorator(func):
         def wrapped(*args, **kwargs):
             if os.path.exists(filename) and not force_calc:
-                print(f'{func.__name__}: cache file {filename} found! Skip calculations')
+                #                 print(f'{func.__name__}: cache file {filename} found! Skip calculations')
                 if not ignore_if_exist:
                     with open(filename, 'rb') as f:
                         result = pickle.load(f)
@@ -594,7 +578,7 @@ def load_or_calc_and_save(filename, force_calc=False, ignore_if_exist=False):
                     result = None
             else:
                 print(
-                    f'{func.__name__}: RECALC {filename}.\nargs: {", ".join(args)}, kwargs: {", ".join([f"{k}={v}" for k, v in kwargs.items()])}')
+                    f'{func.__name__}: RECALC {filename}. args: {", ".join(args)}, kwargs: {", ".join([f"{k}={v}" for k, v in kwargs.items()])}')
                 result = func(*args, **kwargs)
                 with open(filename, 'wb') as f:
                     pickle.dump(result, f)
@@ -699,3 +683,68 @@ def meanby_graphs__allparams(data, target_score='score_ari'):
     best_meanari = {si: {param: np.mean(ari) for param, ari in param_ari.items()} for si, param_ari in bestby.items()}
 
     return bestby, best_meanari
+
+
+class OneVsRest_custom:
+    def __init__(self, estimator, weight_samples=True):
+        self.estimator = estimator
+        self.weight_samples = weight_samples
+        self.n_classes = 0
+        self.svms = None
+        
+    def fit(self, X, y):
+        self.n_classes = y.shape[1]
+        self.svms = [deepcopy(self.estimator) for _ in range(self.n_classes)]
+        for i in range(self.n_classes):
+            if self.weight_samples:
+                sample_weight = [1 / np.sum(ys == np.max(ys)) if ys[i] == np.max(ys) else 1 for ys in y]
+                self.svms[i].fit(X, y[:, i], sample_weight)
+            else:
+                self.svms[i].fit(X, y[:, i])
+        return self
+    
+    def predict(self, X):
+        y_pred = []
+        for i in range(self.n_classes):
+            y_pred.append(np.array(self.svms[i].predict(X)))
+        return np.stack(y_pred, axis=1)
+
+
+class OneHotEncoding_custom:
+    def __init__(self, estimator, weight_samples=True):
+        self.estimator = estimator
+        self.weight_samples = weight_samples
+        self.n_classes = 0
+        
+    def _flattenX(self, X):
+        flat_X = []
+        for i in range(self.n_classes):
+            ones = np.zeros((X.shape[0], self.n_classes))
+            ones[:, i] = 1
+            new_X.append(np.concatenate((X, ones), axis=1))
+        flat_X = np.concatenate(new_X, axis=0)
+        return flat_X
+    
+    def _flattenY(y):
+        flat_y, flat_sample_weights = [], []
+        for i in range(self.n_classes):
+            flat_sample_weights.append(np.array([1 / np.sum(ys == np.max(ys)) if ys[i] == np.max(ys) else 1 for ys in y]))
+            flat_y.append(y[:, i])
+        flat_y = np.concatenate(flat_y, axis=0)
+        flat_sample_weights = np.concatenate(flat_sample_weights, axis=0)
+        return flat_y, flat_sample_weights
+            
+    def fit(self, X, y):
+        self.n_classes = y.shape[1]
+        flat_X = self._flattenX(X)
+        flat_y, flat_sample_weights = self._flattenY(y)
+        if self.weight_samples:
+            self.estimator.fit(new_X, new_y, flat_sample_weights)
+        else:
+            self.estimator.fit(new_X, new_y)
+        return self
+    
+    def predict(self, X):
+        new_X = self._flattenX(X)
+        new_y = self.estimator.predict(new_X)
+        return new_y.reshape(self.n_classes, -1).transpose((1, 0))
