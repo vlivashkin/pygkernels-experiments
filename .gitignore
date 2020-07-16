@@ -6,3 +6,4 @@ __pycache__/
 .DS_Store
 cache
 .ipynb_checkpoints
+events.out.tfevents*
