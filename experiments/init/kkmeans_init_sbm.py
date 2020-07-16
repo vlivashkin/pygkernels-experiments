@@ -11,7 +11,7 @@ from tqdm import tqdm
 
 sys.path.append('../../pygkernels')
 from pygkernels.cluster import KKMeans
-from pygkernels.data import StochasticBlockModel
+from pygkernels.data import StochasticBlockModel, Datasets
 from pygkernels.measure import kernels, Kernel
 from pygkernels.score import sns1
 from pygkernels.util import load_or_calc_and_save
@@ -24,35 +24,45 @@ For every column and measure, we calculate [ ] in parallel for every graph.
 CACHE_ROOT = '../../cache/kkmeans_init_sbm'
 # CACHE_ROOT = 'cache/kkmeans_init_sbm'
 columns = [
-    (500, 2, 0.1, 0.001, None), (500, 2, 0.1, 0.005, None), (500, 2, 0.1, 0.01, None), (500, 2, 0.1, 0.02, None),
-    (500, 2, 0.1, 0.05, None),
-    
-    (102, 3, 0.1, 0.03, None),
-    
-    (150, 2, 0.1, 0.03, None),
-    
-    (150, 3, 0.1, 0.03, None),
-    
-    (200, 4, 0.1, 0.03, None),
-    
+    'dolphins',
+    'football',
+    'karate',
+    'news_2cl1', 'news_2cl2', 'news_2cl3',
+    'news_3cl1', 'news_3cl2', 'news_3cl3',
+    'news_5cl1', 'news_5cl2', 'news_5cl3',
+    'news_2cl1_0.1', 'news_2cl2_0.1', 'news_2cl3_0.1',
+    'news_3cl1_0.1', 'news_3cl2_0.1', 'news_3cl3_0.1',
+    'news_5cl1_0.1', 'news_5cl2_0.1', 'news_5cl3_0.1',
+    'polblogs',
+    'polbooks',
+    'sp_school_day_1', 'sp_school_day_2',
+    'cora_DB', 'cora_EC', 'cora_HA', 'cora_HCI', 'cora_IR', 'cora_Net',
+    'eu-core',
+    'eurosis',
+
     (100, 2, 0.1, 0.001, 2), (100, 2, 0.1, 0.005, 2), (100, 2, 0.1, 0.01, 2), (100, 2, 0.1, 0.02, 2),
     (100, 2, 0.1, 0.05, 2), (100, 2, 0.1, 0.1, 2),
-    
+
     (500, 2, 0.1, 0.03, None), (500, 2, 0.1, 0.1, None),
 
     (200, 2, 0.1, 0.001, None), (200, 2, 0.1, 0.005, None), (200, 2, 0.1, 0.01, None), (200, 2, 0.1, 0.02, None),
-    (200, 2, 0.1, 0.03, None), (200, 2, 0.1, 0.05, None), (200, 2, 0.1, 0.1, None),
+    (200, 2, 0.1, 0.03, None), (200, 2, 0.1, 0.05, None), (200, 2, 0.1, 0.1, None)
 ]
 
 
 def generate_graphs(column, n_graphs, root=f'{CACHE_ROOT}/graphs'):
-    n, k, p_in, p_out, balance = column
-    column_str = f'{n}_{k}_{p_in:.2f}_{p_out:.3f}' + (f'_{balance:.2f}' if balance is not None else '')
+    if type(column) == tuple:
+        n, k, p_in, p_out, balance = column
+        column_str = f'{n}_{k}_{p_in:.2f}_{p_out:.3f}' + (f'_{balance:.2f}' if balance is not None else '')
+        generator = StochasticBlockModel(n, k, p_in=p_in, p_out=p_out, balance=balance)
+    else:
+        column_str = f'dataset2sbm_{column}'
+        _, info = Datasets()[column]
+        generator = StochasticBlockModel(info['n'], info['k'], cluster_sizes=info['S'], probability_matrix=info['P'])
 
     @load_or_calc_and_save(f'{root}/{column_str}_{n_graphs}_graphs.pkl')
     def _calc(n_graphs=n_graphs, n_params=None, n_jobs=None):
-        graphs, _ = StochasticBlockModel(n, k, p_in=p_in, p_out=p_out, balance=balance)\
-            .generate_graphs(n_graphs, verbose=True)
+        graphs, _ = generator.generate_graphs(n_graphs, verbose=True)
         return graphs
 
     return _calc(n_graphs=n_graphs, n_params=None, n_jobs=None)
@@ -100,8 +110,13 @@ def perform_graph(graph, kernel_class: Type[Kernel], estimator: KKMeans, n_param
 
 
 def perform_kernel(column, graphs, kernel_class, n_params, n_jobs, n_gpu, root=f'{CACHE_ROOT}/by_column'):
-    n, k, p_in, p_out, balance = column
-    column_str = f'{n}_{k}_{p_in:.2f}_{p_out:.3f}' + (f'_{balance:.2f}' if balance is not None else '')
+    if type(column) == tuple:
+        n, k, p_in, p_out, balance = column
+        column_str = f'{n}_{k}_{p_in:.2f}_{p_out:.3f}' + (f'_{balance:.2f}' if balance is not None else '')
+    else:
+        column_str = f'dataset2sbm_{column}'
+        _, info = Datasets()[column]
+        k = info['k']
 
     try:
         os.mkdir(f'{root}/{column_str}')
@@ -120,8 +135,12 @@ def perform_kernel(column, graphs, kernel_class, n_params, n_jobs, n_gpu, root=f
 
 
 def perform_column(column, graphs):
-    n, k, p_in, p_out, balance = column
-    column_str = f'{n}_{k}_{p_in:.2f}_{p_out:.3f}' + (f'_{balance:.2f}' if balance is not None else '')
+    if type(column) == tuple:
+        n, k, p_in, p_out, balance = column
+        column_str = f'{n}_{k}_{p_in:.2f}_{p_out:.3f}' + (f'_{balance:.2f}' if balance is not None else '')
+    else:
+        column_str = f'dataset2sbm_{column}'
+
     for kernel_class in tqdm(kernels, desc=column_str):
         perform_kernel(column, graphs, kernel_class, n_params=N_PARAMS, n_jobs=N_JOBS, n_gpu=N_GPU)
 
