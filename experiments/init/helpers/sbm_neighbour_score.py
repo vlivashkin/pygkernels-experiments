@@ -24,12 +24,26 @@ def p_interval(l, h, size, p):
     return np.sum([pe(e, size, p) for e in range(l, h + 1)])
 
 
-def sbm_neighbour_score(n, k, p_in, p_out, balance=None, weighting='proportional'):
-    if balance is not None:
+def sbm_neighbour_score(n, k, p_in=None, p_out=None, balance=None, cluster_sizes=None, p=None,
+                        weighting='proportional'):
+    if cluster_sizes is not None and p is not None:
+        score = np.zeros((k,))
+        for ki in range(k):
+            for e in range(cluster_sizes[ki]):
+                class_score_e = pe(e, cluster_sizes[ki] - 1, p[ki, ki])
+                for kj in range(k):
+                    if ki != kj:
+                        class_score_e *= p_interval(0, min(e - 1, cluster_sizes[kj]), cluster_sizes[kj], p[ki, kj])
+                score[ki] += class_score_e
+        if weighting == 'proportional':
+            sbmn_score = np.sum([sc * size for sc, size in zip(score, cluster_sizes)]) / n
+        else:
+            sbmn_score = np.mean(score)
+    elif balance is not None:
         softmax = lambda x, beta: np.exp(beta * x) / np.sum(np.exp(beta * x), axis=0)
         cluster_sizes = ([1] * k + (n - k) * softmax(np.arange(k)[::-1], beta=balance)).astype(np.int)
         cluster_sizes[0] += n - np.sum(cluster_sizes)
-        
+
         score = np.zeros((k,))
         for ki in range(k):
             for e in range(cluster_sizes[ki]):
@@ -38,18 +52,20 @@ def sbm_neighbour_score(n, k, p_in, p_out, balance=None, weighting='proportional
                     if ki != kj:
                         class_score_e *= p_interval(0, min(e - 1, cluster_sizes[kj]), cluster_sizes[kj], p_out)
                 score[ki] += class_score_e
-        
         if weighting == 'proportional':
-            overall = np.sum([sc * size for sc, size in zip(score, cluster_sizes)]) / n
+            sbmn_score = np.sum([sc * size for sc, size in zip(score, cluster_sizes)]) / n
         else:
-            overall = np.mean(score)
-        return overall
+            sbmn_score = np.mean(score)
     else:
         size = n // k
-        sum_ = 0
+        sbmn_score = 0
         for e in range(size):
-            sum_ += pe(e, size - 1, p_in) * (p_interval(0, e - 1, size, p_out) ** (k - 1))
-        return sum_
+            sbmn_score += pe(e, size - 1, p_in) * (p_interval(0, e - 1, size, p_out) ** (k - 1))
+        return sbmn_score
+
+    assert 0 <= sbmn_score <= 1
+
+    return sbmn_score
 
 
 def graph_neighbour_score(A, partition, weighting='proportional'):
@@ -87,17 +103,8 @@ def graph_neighbour_score(A, partition, weighting='proportional'):
                 p[i, j], p[j, i] = p_out, p_out
 
     # let's calculate score for every class, and than weight it
-    score = np.zeros((n_clusters,))
-    for ki in range(n_clusters):
-        for e in range(cluster_sizes[ki]):
-            class_score_e = pe(e, cluster_sizes[ki] - 1, p[ki, ki])
-            for kj in range(n_clusters):
-                if ki != kj:
-                    class_score_e *= p_interval(0, min(e - 1, cluster_sizes[kj]), cluster_sizes[kj], p[ki, kj])
-            score[ki] += class_score_e
+    sbmn_score = sbm_neighbour_score(n_nodes, n_clusters, cluster_sizes=cluster_sizes, p=p, weighting=weighting)
 
-    if weighting == 'proportional':
-        overall = np.sum([sc * size for sc, size in zip(score, cluster_sizes)]) / n_nodes
-    else:
-        overall = np.mean(score)
-    return overall
+    assert 0 <= sbmn_score <= 1
+
+    return sbmn_score
