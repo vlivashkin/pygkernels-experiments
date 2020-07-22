@@ -57,7 +57,7 @@ def generate_graphs(column, n_graphs, root=f'{CACHE_ROOT}/graphs'):
         _, info = Datasets()[column]
         generator = StochasticBlockModel(info['n'], info['k'], cluster_sizes=info['S'], probability_matrix=info['P'])
 
-    @load_or_calc_and_save(f'{root}/{column_str}_{n_graphs}_graphs.pkl')
+    @load_or_calc_and_save(f'{root}/{column_str}_graphs.pkl')  # _{n_graphs}
     def _calc(n_graphs=n_graphs, n_params=None, n_jobs=None):
         graphs, _ = generator.generate_graphs(n_graphs, verbose=True)
         return graphs
@@ -152,7 +152,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--n_jobs', type=int, default=4, required=False)
     parser.add_argument('--n_gpu', type=int, default=2, required=False)
-    parser.add_argument('--n_graphs', type=int, default=100, required=False)
+    parser.add_argument('--n_graphs', type=int, default=10, required=False)
     parser.add_argument('--n_inits', type=int, default=30, required=False)
     parser.add_argument('--n_params', type=int, default=51, required=False)
 

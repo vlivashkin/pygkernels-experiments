@@ -8,9 +8,9 @@ from networkx.algorithms.approximation import clique
 
 from helpers.data import Data
 from helpers.sbm_neighbour_score import sbm_neighbour_score, graph_neighbour_score
-from helpers.utils import ytrue_to_partition
+from helpers.utils import ytrue_to_partition, load_or_calc_and_save
 
-sys.path.append('../../../pygkernels')
+sys.path.append('../../pygkernels')
 from pygkernels.data.dataset import Datasets
 
 
@@ -21,15 +21,15 @@ class Datasets_Data(Data):
         'dolphins',
         'football',
         'karate',
-        #         'polbooks',
-        #         'sp_school_day_1', 'sp_school_day_2',
+        'polbooks',
+        'sp_school_day_1', 'sp_school_day_2',
         'news_2cl1_0.1', 'news_2cl2_0.1', 'news_2cl3_0.1',
-        #         'news_3cl1_0.1', 'news_3cl2_0.1', 'news_3cl3_0.1',
-        #         'news_5cl1_0.1', 'news_5cl2_0.1', 'news_5cl3_0.1',
-        #         'polblogs',
-        #         'cora_DB', 'cora_EC', 'cora_HA', 'cora_HCI', 'cora_IR', 'cora_Net',
-        #         'eu-core',
-        #         'eurosis'
+        'news_3cl1_0.1', 'news_3cl2_0.1', 'news_3cl3_0.1',
+#         'news_5cl1_0.1', 'news_5cl2_0.1', 'news_5cl3_0.1',
+#         'polblogs',
+#         'cora_DB', 'cora_EC', 'cora_HA', 'cora_HCI', 'cora_IR', 'cora_Net',
+#         'eu-core',
+#         'eurosis'
     ]
 
     actual_graphs = Datasets()

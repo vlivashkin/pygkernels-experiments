@@ -12,7 +12,6 @@ sys.path.append('../../pygkernels')
 from pygkernels.cluster import KKMeans
 from pygkernels.data import Datasets
 from pygkernels.measure import kernels, Kernel
-from pygkernels.score import sns1
 from pygkernels.util import load_or_calc_and_save
 
 CACHE_ROOT = '../../cache/kkmeans_init_datasets'
@@ -20,9 +19,6 @@ dataset_names = [
     'dolphins',
     'football',
     'karate',
-    'news_2cl1', 'news_2cl2', 'news_2cl3',
-    'news_3cl1', 'news_3cl2', 'news_3cl3',
-    'news_5cl1', 'news_5cl2', 'news_5cl3',
     'news_2cl1_0.1', 'news_2cl2_0.1', 'news_2cl3_0.1',
     'news_3cl1_0.1', 'news_3cl2_0.1', 'news_3cl3_0.1',
     'news_5cl1_0.1', 'news_5cl2_0.1', 'news_5cl3_0.1',
