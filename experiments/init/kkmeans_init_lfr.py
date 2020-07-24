@@ -25,16 +25,18 @@ CACHE_ROOT = '../../cache/kkmeans_init_lfr'
 # CACHE_ROOT = 'cache/kkmeans_init_lfr'
 dataset_names = [
     'dolphins',
-    'football',
+    # 'football',
     'karate',
     'polbooks',
-    'sp_school_day_1', 'sp_school_day_2',
+    # 'sp_school_day_1', 'sp_school_day_2',
     'news_2cl1_0.1', 'news_2cl2_0.1', 'news_2cl3_0.1',
     'news_3cl1_0.1', 'news_3cl2_0.1', 'news_3cl3_0.1',
     'news_5cl1_0.1', 'news_5cl2_0.1', 'news_5cl3_0.1',
     'polblogs',
-    'cora_DB', 'cora_EC', 'cora_HA', 'cora_HCI', 'cora_IR', 'cora_Net',
-    'eu-core',
+    'cora_DB', 'cora_EC',
+    # 'cora_HA',
+    'cora_HCI', 'cora_IR', 'cora_Net',
+    # 'eu-core',
     'eurosis'
 ]
 

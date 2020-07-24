@@ -39,26 +39,12 @@ class SBM_Data(Data):
 
     @staticmethod
     def column2str(column):
-        if type(column) == tuple:
-            if len(column) == 4:
-                n, k, p_in, p_out = column
-                return f'{n}_{k}_{p_in:.2f}_{p_out:.3f}'
-            else:
-                n, k, p_in, p_out, unbalance = column
-                return f'{n}_{k}_{p_in:.2f}_{p_out:.3f}_{unbalance:.2f}'
-        else:
-            return f'dataset2sbm_{column}'
+        return f'dataset2lfr_{column}'
 
     def str2column(self, column_str):
-        if column_str.startswith('dataset2sbm_'):
-            column = column_str[12:]
-            _, info = self.datasets_source[column]
-            return info['n'], info['k'], None, info['p_in'], info['p_out']
-        else:
-            split = column_str.split('_')
-            n, k, p_in, p_out = int(split[0]), int(split[1]), float(split[2]), float(split[3])
-            unbalance = 0 if len(column_str.split('_')) == 4 else float(split[4])
-            return n, k, unbalance, p_in, p_out
+        column = column_str[12:]
+        _, info = self.datasets_source[column]
+        return info['n'], info['k'], None, info['p_in'], info['p_out']
 
     def load_precalculated(self):
         with open(f'{self.CACHE_ROOT}/sbm_inits_bestparam_byari_individual.pkl', 'rb') as f:
@@ -122,11 +108,7 @@ class SBM_Data(Data):
             return np.log((n / k) * (p_in / p_out))
 
         elif feature == 'sbm_neighbour_score':
-            if not column_str.startswith('dataset2sbm_'):
-                return sbm_neighbour_score(int(n), int(k), p_in=p_in, p_out=p_out)
-            else:
-                _, info = self.datasets_source[column_str[12:]]
-                return sbm_neighbour_score(int(n), int(k), cluster_sizes=info['S'], p=info['P'])
+            return sbm_neighbour_score(int(n), int(k), cluster_sizes=info['S'], p=info['P'])
 
         # graph-dependant features
         elif feature == 'modularity':
