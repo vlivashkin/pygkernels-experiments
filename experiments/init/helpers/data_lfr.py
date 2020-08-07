@@ -14,22 +14,24 @@ sys.path.append('../../pygkernels')
 from pygkernels.data.dataset import Datasets
 
 
-class SBM_Data(Data):
-    SBM_RESULTS_ROOT = '../../cache/kkmeans_init_lfrkkmeans_init_lfr'
+class LFR_Data(Data):
+    LFR_RESULTS_ROOT = '../../cache/kkmeans_init_lfr'
 
     sbm_columns = [
         'dolphins',
-        'football',
+        # 'football',
         'karate',
-        'polbooks',
-        'sp_school_day_1', 'sp_school_day_2',
+        # 'polbooks',
+        # 'sp_school_day_1', 'sp_school_day_2',
         'news_2cl1_0.1', 'news_2cl2_0.1', 'news_2cl3_0.1',
         'news_3cl1_0.1', 'news_3cl2_0.1', 'news_3cl3_0.1',
         'news_5cl1_0.1', 'news_5cl2_0.1', 'news_5cl3_0.1',
         'polblogs',
-        'cora_DB', 'cora_EC', 'cora_HA', 'cora_HCI', 'cora_IR', 'cora_Net',
-        'eu-core',
-        'eurosis'
+        'cora_DB', 'cora_EC', 
+#         'cora_HA',
+        'cora_HCI', 'cora_IR', 'cora_Net',
+        # 'eu-core',
+        # 'eurosis'
     ]
 
     def __init__(self):
@@ -47,9 +49,9 @@ class SBM_Data(Data):
         return info['n'], info['k'], None, info['p_in'], info['p_out']
 
     def load_precalculated(self):
-        with open(f'{self.CACHE_ROOT}/sbm_inits_bestparam_byari_individual.pkl', 'rb') as f:
+        with open(f'{self.CACHE_ROOT}/lfr_inits_bestparam_byari_individual.pkl', 'rb') as f:
             results = pickle.load(f)  # {(dataset, kernel_name, graph_idx): {scorename_initname: best_ari}}
-        with open(f'{self.CACHE_ROOT}/sbm_modularity.pkl', 'rb') as f:
+        with open(f'{self.CACHE_ROOT}/lfr_modularity.pkl', 'rb') as f:
             modularity_results = pickle.load(f)  # {(dataset, graph_idx): modularity}
 
         for key in list(results.keys()):
@@ -67,9 +69,9 @@ class SBM_Data(Data):
 
         return results, results_modularity_any3, modularity_results
 
-    def extract_feature(self, column_str, feature, G=None, partition=None, sp=None, max_clique=None):
+    def extract_feature(self, dataset_name, feature, G=None, partition=None, sp=None, max_clique=None):
         # graph-independent features
-        n, k, unbalance, p_in, p_out = self.str2column(column_str)
+        n, k, unbalance, p_in, p_out = self.str2column(dataset_name)
         if feature == 'n':
             return n
         elif feature == 'k':
@@ -108,6 +110,7 @@ class SBM_Data(Data):
             return np.log((n / k) * (p_in / p_out))
 
         elif feature == 'sbm_neighbour_score':
+            _, info = self.datasets_source[dataset_name]
             return sbm_neighbour_score(int(n), int(k), cluster_sizes=info['S'], p=info['P'])
 
         # graph-dependant features
@@ -142,7 +145,7 @@ class SBM_Data(Data):
             return max_clique / (n / k)
         elif feature == 'class_idx':
             for class_idx, datasetss in enumerate(self.datasets_partition):
-                if column_str in datasetss:
+                if dataset_name in datasetss:
                     return class_idx
         else:
             raise Exception()
@@ -152,7 +155,7 @@ class SBM_Data(Data):
         def wrapper():
             X, ya = [], []
             filename = f'{column}_graphs.pkl'
-            with open(f'{self.SBM_RESULTS_ROOT}/graphs/{filename}', 'rb') as f:
+            with open(f'{self.LFR_RESULTS_ROOT}/graphs/{filename}', 'rb') as f:
                 data = pickle.load(f)
             for graph_idx in range(10):
                 try:

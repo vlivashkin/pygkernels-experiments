@@ -27,7 +27,7 @@ dataset_names = [
     'dolphins',
     # 'football',
     'karate',
-    'polbooks',
+    # 'polbooks',
     # 'sp_school_day_1', 'sp_school_day_2',
     'news_2cl1_0.1', 'news_2cl2_0.1', 'news_2cl3_0.1',
     'news_3cl1_0.1', 'news_3cl2_0.1', 'news_3cl3_0.1',
@@ -37,7 +37,7 @@ dataset_names = [
     # 'cora_HA',
     'cora_HCI', 'cora_IR', 'cora_Net',
     # 'eu-core',
-    'eurosis'
+    # 'eurosis'
 ]
 
 
@@ -122,14 +122,14 @@ def perform_column(dataset_name, graphs):
 def perform(n_graphs):
     for column in dataset_names:
         graphs = generate_graphs(column, n_graphs)
-        perform_column(column, graphs)
+        perform_column(column, graphs[:N_GRAPHS])
 
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--n_jobs', type=int, default=4, required=False)
     parser.add_argument('--n_gpu', type=int, default=2, required=False)
-    parser.add_argument('--n_graphs', type=int, default=10, required=False)
+    parser.add_argument('--n_graphs', type=int, default=5, required=False)
     parser.add_argument('--n_inits', type=int, default=30, required=False)
     parser.add_argument('--n_params', type=int, default=51, required=False)
 

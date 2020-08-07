@@ -150,9 +150,9 @@ def perform(n_graphs):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('--n_jobs', type=int, default=4, required=False)
-    parser.add_argument('--n_gpu', type=int, default=2, required=False)
-    parser.add_argument('--n_graphs', type=int, default=10, required=False)
+    parser.add_argument('--n_jobs', type=int, default=1, required=False)
+    parser.add_argument('--n_gpu', type=int, default=1, required=False)
+    parser.add_argument('--n_graphs', type=int, default=1, required=False)
     parser.add_argument('--n_inits', type=int, default=30, required=False)
     parser.add_argument('--n_params', type=int, default=51, required=False)
 
