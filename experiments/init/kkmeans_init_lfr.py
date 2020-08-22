@@ -25,19 +25,17 @@ CACHE_ROOT = '../../cache/kkmeans_init_lfr'
 # CACHE_ROOT = 'cache/kkmeans_init_lfr'
 dataset_names = [
     'dolphins',
-    # 'football',
+    'football',
     'karate',
-    # 'polbooks',
+    'polbooks',
     # 'sp_school_day_1', 'sp_school_day_2',
     'news_2cl1_0.1', 'news_2cl2_0.1', 'news_2cl3_0.1',
     'news_3cl1_0.1', 'news_3cl2_0.1', 'news_3cl3_0.1',
     'news_5cl1_0.1', 'news_5cl2_0.1', 'news_5cl3_0.1',
     'polblogs',
-    'cora_DB', 'cora_EC',
-    # 'cora_HA',
-    'cora_HCI', 'cora_IR', 'cora_Net',
-    # 'eu-core',
-    # 'eurosis'
+    'cora_DB', 'cora_EC', 'cora_HA', 'cora_HCI', 'cora_IR', 'cora_Net',
+    'eu-core',
+    'eurosis'
 ]
 
 
@@ -105,21 +103,24 @@ def perform_kernel(dataset_name, graphs, kernel_class, n_params, n_jobs, n_gpu, 
     @load_or_calc_and_save(f'{root}/{column_str}/{column_str}_{kernel_class.name}_results.pkl', ignore_if_exist=True)
     def _calc(n_graphs=None, n_params=n_params, n_jobs=n_jobs):
         kmeans = partial(KKMeans, n_clusters=k, init='any', n_init=N_INITS, init_measure='modularity')
-        return Parallel(n_jobs=n_jobs)(delayed(perform_graph)(
-            graph, kernel_class, kmeans(device=graph_idx % n_gpu, random_state=2000 + graph_idx), n_params=n_params,
-            graph_idx=graph_idx
-        ) for graph_idx, graph in enumerate(graphs))
+        for graph_idx, graph in enumerate(graphs):
+            perform_graph(graph, kernel_class, kmeans(device=graph_idx % n_gpu, random_state=2000 + graph_idx),
+                          n_params=n_params, graph_idx=graph_idx)
 
     return _calc(n_graphs=None, n_params=n_params, n_jobs=n_jobs)
 
 
 def perform_column(dataset_name, graphs):
     column_str = f'dataset2lfr_{dataset_name}'
-    for kernel_class in tqdm(kernels, desc=column_str):
-        perform_kernel(dataset_name, graphs, kernel_class, n_params=N_PARAMS, n_jobs=N_JOBS, n_gpu=N_GPU)
+    return Parallel(n_jobs=N_JOBS)(delayed(perform_kernel)(
+        dataset_name, graphs, kernel_class, n_params=N_PARAMS, n_jobs=N_JOBS, n_gpu=N_GPU
+    ) for kernel_class in tqdm(kernels, desc=column_str))
 
 
 def perform(n_graphs):
+    for column in dataset_names:
+        generate_graphs(column, n_graphs)
+
     for column in dataset_names:
         graphs = generate_graphs(column, n_graphs)
         perform_column(column, graphs[:N_GRAPHS])
@@ -127,11 +128,11 @@ def perform(n_graphs):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('--n_jobs', type=int, default=4, required=False)
+    parser.add_argument('--n_jobs', type=int, default=6, required=False)
     parser.add_argument('--n_gpu', type=int, default=2, required=False)
-    parser.add_argument('--n_graphs', type=int, default=5, required=False)
-    parser.add_argument('--n_inits', type=int, default=30, required=False)
-    parser.add_argument('--n_params', type=int, default=51, required=False)
+    parser.add_argument('--n_graphs', type=int, default=1, required=False)
+    parser.add_argument('--n_inits', type=int, default=6, required=False)
+    parser.add_argument('--n_params', type=int, default=16, required=False)
 
     args = parser.parse_args()
     print(args)
