@@ -23,14 +23,14 @@ def randfloat(low, high, distribution='linear'):
         return np.clip(1 / (1 - x), low, high)
     elif distribution == 'powersqrt':
         x = np.random.random()
-        return np.clip(1 / (1 - x)**(1/3), low, high)
+        return np.clip(1 / (1 - x)**(1/5), low, high)
 
 def generate_params():
     np.random.seed(None)
     n = np.random.randint(10, 1500)
-    tau1 = randfloat(1, 50, 'powersqrt')
-    tau2 = randfloat(1, 200, 'linear' if np.random.random() > 0.5 else 'power')
-    mu = randfloat(.0, 1.)
+    tau1 = randfloat(1, 100, 'power')
+    tau2 = randfloat(1, 200, 'power')
+    mu = randfloat(.0, randfloat(0., 1.))
     avg_degree = randfloat(.0, n)
     min_community = np.random.randint(1, n)
     return n, tau1, tau2, mu, avg_degree, min_community
