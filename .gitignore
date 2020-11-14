@@ -7,3 +7,4 @@ __pycache__/
 cache
 .ipynb_checkpoints
 events.out.tfevents*
+/experiments/init/.~lock.lfr_params.xlsx#
