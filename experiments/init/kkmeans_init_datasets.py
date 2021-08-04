@@ -14,7 +14,7 @@ from pygkernels.data import Datasets
 from pygkernels.measure import kernels, Kernel
 from pygkernels.util import load_or_calc_and_save
 
-CACHE_ROOT = '../../cache/kkmeans_init_datasets'
+CACHE_ROOT = '/data/phd/pygkernels/cache/kkmeans_init_datasets'
 dataset_names = [
     'dolphins',
     'football',
@@ -25,7 +25,8 @@ dataset_names = [
     'polblogs',
     'polbooks',
     'sp_school_day_1', 'sp_school_day_2',
-    'cora_DB', 'cora_EC', 'cora_HA', 'cora_HCI', 'cora_IR', 'cora_Net',
+    'cora_AI', 'cora_AI_ML', 'cora_DS_AT', 'cora_DB', 'cora_EC', 'cora_HA',
+    'cora_HCI', 'cora_IR', 'cora_Net', 'cora_OS', 'cora_Prog',
     'eu-core',
     'eurosis'
 ]
@@ -73,20 +74,20 @@ def perform_graph(dataset_name, graph, kernel_class: Type[Kernel], k, graph_idx,
 
 
 def perform():
-    for dataset_name in dataset_names:
-        graphs, _, info = Datasets()[dataset_name]
-        for kernel_class in tqdm(kernels, desc=dataset_name):
-            for graph_idx in range(N_GRAPHS):
-                perform_graph(dataset_name, graphs[0], kernel_class, info['k'], graph_idx)
+    for graph_idx in range(N_GRAPHS):
+        for dataset_name in dataset_names:
+            graph, info = Datasets()[dataset_name]
+            for kernel_class in tqdm(kernels, desc=dataset_name):
+                perform_graph(dataset_name, graph, kernel_class, info['k'], graph_idx)
 
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('--n_jobs', type=int, default=6, required=False)
+    parser.add_argument('--n_jobs', type=int, default=3, required=False)
     parser.add_argument('--n_gpu', type=int, default=2, required=False)
     parser.add_argument('--n_graphs', type=int, default=7, required=False)
-    parser.add_argument('--n_inits', type=int, default=30, required=False)
-    parser.add_argument('--n_params', type=int, default=51, required=False)
+    parser.add_argument('--n_inits', type=int, default=6, required=False)
+    parser.add_argument('--n_params', type=int, default=16, required=False)
 
     args = parser.parse_args()
     print(args)
