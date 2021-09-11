@@ -4,9 +4,10 @@ import pickle
 import sys
 import time
 import traceback
+import argparse
 
 import numpy as np
-from gpuparallel import GPUParallel, delayed, log_to_stderr
+from joblib import Parallel, delayed
 from sklearn.metrics import adjusted_rand_score, normalized_mutual_info_score
 
 sys.path.append('../../pygkernels')
@@ -15,18 +16,14 @@ from pygkernels.measure import kernels, Kernel
 from pygkernels.score import sns1
 from pygkernels.data import LFRGenerator
 
-import joblib
-from joblib.externals import loky
-print(joblib.__version__)
-print(loky.__version__)
-
 log = mp.get_logger()
-log_to_stderr(log_level='WARNING')
+
 
 def create_krondecker(partition):
     n = len(partition)
     kron_mask = np.tile(partition, n) == np.repeat(partition, n)
     return np.reshape(kron_mask, (n, n))
+
 
 def modularity2(AIJ, partition):
     n = len(AIJ)
@@ -49,18 +46,19 @@ def randfloat(low, high, distribution='linear'):
         return np.clip(1 / (1 - x), low, high)
     elif distribution == 'powersqrt':
         x = np.random.random()
-        return np.clip(1 / (1 - x)**(1/5), low, high)
+        return np.clip(1 / (1 - x) ** (1 / 5), low, high)
+
 
 def generate_params():
     while True:
         np.random.seed(None)
         n = np.random.randint(10, 1500)
-        tau1 = randfloat(1, 4, 'linear')
+        tau1 = randfloat(1, 50, 'power')
         tau2 = randfloat(1, 200, 'power')
-        mu = randfloat(.0, .5)
+        mu = randfloat(.0, 1.)
         avg_degree = randfloat(.0, n)
         min_community = np.random.randint(1, n)
-        
+
         min_distances = sorted(euclidean_distances(np.array(prepare_info({
             'n': n, 'tau1': tau1, 'tau2': tau2, 'mu': mu, 'average_degree': avg_degree
         }))[None], existing_items)[0].tolist())[:3]
@@ -103,7 +101,7 @@ def generate_proper_graph():
         if proc.is_alive():
             # log.warning('Terminate')
             proc.terminate()
-            
+
     return result
 
 
@@ -112,7 +110,7 @@ def endless_generator():
         yield True
 
 
-def perform_graph(device_id, **kwargs):
+def perform_graph():
     log.warning('Generate graph...')
     A, y_true, info = generate_proper_graph()
 
@@ -131,7 +129,7 @@ def perform_graph(device_id, **kwargs):
                     param = kernel.scaler.scale(param_flat)
                     K = kernel.get_K(param)
                     inits = KKMeans(n_clusters=info['k'], init='any', n_init=N_INITS, init_measure='modularity',
-                                    device=device_id).predict(K, explicit=True, A=A)
+                                    device=GPU_ID).predict(K, explicit=True, A=A)
 
                     param_results = []
                     for init in inits:
@@ -182,16 +180,20 @@ def euclidean_distances(X, Y):
 
 
 if __name__ == '__main__':
+    parser = argparse.ArgumentParser(description='Process some integers.')
+    parser.add_argument('gpu_id', type=int)
+    args = parser.parse_args()
+
     N_JOBS = 8
-    N_GPU = 2
+    GPU_ID = args.gpu_id
     N_GRAPHS = 1
     N_INITS = 6
     N_PARAMS = 16
-    
+
     existing_items = []
     with open('all_dataset.json', 'r') as f:
         for info in json.load(f):
             existing_items.append(prepare_info(info))
     log.warning(f'{len(existing_items)} graphs are already exist...')
 
-    list(GPUParallel(n_gpu=N_GPU, n_workers_per_gpu=5)(delayed(perform_graph)() for _ in endless_generator()))
+    Parallel(n_jobs=N_JOBS)(delayed(perform_graph)() for _ in endless_generator())
